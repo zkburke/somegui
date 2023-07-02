@@ -2,11 +2,16 @@ const std = @import("std");
 
 const Context = @This();
 const CommandBuffer = @import("CommandBuffer.zig");
+const Input = @import("Input.zig");
 
+allocator: std.mem.Allocator,
 command_buffer: ?*CommandBuffer = null,
+input: Input = .{},
 
-pub fn init() Context {
-    return .{};
+pub fn init(allocator: std.mem.Allocator) Context {
+    return .{
+        .allocator = allocator,
+    };
 }
 
 pub fn deinit(self: *Context) void {
