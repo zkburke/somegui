@@ -24,9 +24,8 @@ pub fn main() !void {
 
     var raylib_font = c.GetFontDefault();
 
-    var font = somegui.Font{
-        .client_data = &raylib_font,
-    };
+    var font = try raylibFontToGuiFont(allocator, &raylib_font);
+    defer raylibFontToGuiFontFree(allocator, font);
 
     while (!c.WindowShouldClose()) {
         c.BeginDrawing();
@@ -36,24 +35,21 @@ pub fn main() !void {
 
         {
             gui_context.begin(&gui_commands);
-            defer gui_context.deinit();
+            defer gui_context.end();
 
-            gui_commands.drawFilledRectangle(.{
-                .x = 0,
-                .y = 0,
-                .width = 100,
-                .height = 100,
-                .color = somegui.Color.red,
-            });
+            gui_context.font = &font;
+            gui_context.layout.bounds = .{ 0, 0, @as(u16, @intCast(c.GetScreenWidth())), @as(u16, @intCast(c.GetScreenHeight())) };
 
-            gui_commands.drawText(.{
-                .x = 10,
-                .y = 10,
-                .font = &font,
-                .font_size = 20,
-                .string = "hello, world",
-                .color = somegui.Color.black,
-            });
+            gui_context.beginRow();
+
+            // gui_context.textFormat("hello, {s}", .{"world"});
+            gui_context.text("hello, world");
+            gui_context.text("what a lovely world");
+
+            gui_context.beginRow();
+
+            gui_context.text("what a lovely world");
+            gui_context.text("what a lovely world");
         }
 
         var command_iterator = gui_commands.iterator();
@@ -94,6 +90,48 @@ pub fn main() !void {
 
         gui_commands.clear();
     }
+}
+
+pub fn raylibFontToGuiFont(allocator: std.mem.Allocator, font: *c.Font) !somegui.Font {
+    const glyphs = try allocator.alloc(somegui.Font.Glyph, @as(usize, @intCast(font.glyphCount)));
+    const glyph_codepoints = try allocator.alloc(u21, glyphs.len);
+    const glyph_rectangles = try allocator.alloc(@Vector(4, u16), @as(usize, @intCast(font.glyphCount)));
+
+    for (glyphs, 0..) |*glyph, i| {
+        const raylib_glyph = font.glyphs[i];
+        const raylib_rectangle = font.recs[i];
+
+        glyph_codepoints[i] = @as(u21, @intCast(raylib_glyph.value));
+
+        glyph.size_x = @as(u16, @intCast(raylib_glyph.advanceX));
+        glyph.size_y = @as(u16, @intCast(font.baseSize));
+        glyph.offset_x = @as(u16, @intCast(raylib_glyph.offsetX));
+        glyph.offset_y = @as(u16, @intCast(raylib_glyph.offsetY));
+
+        glyph_rectangles[i] = .{
+            @as(u16, @intFromFloat(raylib_rectangle.x)),
+            @as(u16, @intFromFloat(raylib_rectangle.y)),
+            @as(u16, @intFromFloat(raylib_rectangle.width)),
+            @as(u16, @intFromFloat(raylib_rectangle.height)),
+        };
+    }
+
+    return somegui.Font{
+        .glyphs = glyphs,
+        .glyph_codepoints = glyph_codepoints,
+        .glyph_rectangles = glyph_rectangles,
+        .padding_x = @as(u16, @intCast(font.glyphPadding)),
+        .padding_y = @as(u16, @intCast(font.glyphPadding)),
+        .base_size_x = @as(u16, @intCast(font.baseSize)),
+        .base_size_y = @as(u16, @intCast(font.baseSize)),
+        .client_data = font,
+    };
+}
+
+pub fn raylibFontToGuiFontFree(allocator: std.mem.Allocator, font: somegui.Font) void {
+    allocator.free(font.glyph_codepoints);
+    allocator.free(font.glyphs);
+    allocator.free(font.glyph_rectangles);
 }
 
 pub fn measureTextExLen(font: c.Font, text: []const u8, font_size: f32, spacing: f32) c.Vector2 {
