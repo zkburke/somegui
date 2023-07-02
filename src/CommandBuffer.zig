@@ -2,15 +2,7 @@ const std = @import("std");
 
 const CommandBuffer = @This();
 
-pub const Color = struct {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-
-    pub const black: Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 };
-    pub const white: Color = .{ .r = 255, .g = 255, .b = 255, .a = 255 };
-};
+const Color = @import("main.zig").Color;
 
 pub const Command = union(enum) {
     filled_rectangle: FilledRectangle,
@@ -24,10 +16,12 @@ pub const Command = union(enum) {
     };
 };
 
-commands: std.ArrayList(Command) = .{},
+commands: std.ArrayList(Command),
 
-pub fn init() CommandBuffer {
-    return .{};
+pub fn init(allocator: std.mem.Allocator) CommandBuffer {
+    return .{
+        .commands = std.ArrayList(Command).init(allocator),
+    };
 }
 
 pub fn deinit(self: *CommandBuffer) void {
@@ -59,6 +53,8 @@ pub const Iterator = struct {
         if (self.index >= self.command_buffer.commands.items.len) {
             return null;
         }
+
+        defer self.index += 1;
 
         return self.command_buffer.commands.items[self.index];
     }

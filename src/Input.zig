@@ -17,7 +17,7 @@ pub const MouseButtonState = enum {
     released,
 };
 
-mouse_position: @Vector(2, u16),
+mouse_position: @Vector(2, u16) = @splat(2, @as(u16, 0)),
 mouse_buttons: [std.enums.values(MouseButton).len]MouseButtonState = undefined,
 
 pub fn getMouseButton(self: Input, button: MouseButton) MouseButtonState {

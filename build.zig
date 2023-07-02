@@ -19,6 +19,7 @@ pub fn build(builder: *std.Build) void {
 
         exe.linkLibrary(raylib);
         exe.addIncludePath("example/raylib/raylib/src/");
+        exe.addAnonymousModule("somegui", .{ .source_file = std.build.FileSource.relative("src/main.zig") });
 
         const run_cmd = builder.addRunArtifact(exe);
 
