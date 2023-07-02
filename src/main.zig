@@ -1,8 +1,12 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub const Context = @import("Context.zig");
 pub const CommandBuffer = @import("CommandBuffer.zig");
+pub const Context = @import("Context.zig");
+pub const Font = @import("Font.zig");
+pub const Image = @import("Image.zig");
+pub const Input = @import("Input.zig");
+pub const Style = @import("Style.zig");
 
 pub const Color = packed struct(u32) {
     r: u8,
@@ -18,6 +22,5 @@ pub const Color = packed struct(u32) {
 };
 
 test {
-    _ = Context;
-    _ = CommandBuffer;
+    std.testing.refAllDecls(@This());
 }

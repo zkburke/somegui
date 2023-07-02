@@ -3,15 +3,26 @@ const std = @import("std");
 const CommandBuffer = @This();
 
 const Color = @import("main.zig").Color;
+const Font = @import("main.zig").Font;
 
 pub const Command = union(enum) {
     filled_rectangle: FilledRectangle,
+    text: Text,
 
     pub const FilledRectangle = struct {
         x: u16,
         y: u16,
         width: u16,
         height: u16,
+        color: Color,
+    };
+
+    pub const Text = struct {
+        string: []const u8,
+        x: u16,
+        y: u16,
+        font_size: u16,
+        font: *const Font,
         color: Color,
     };
 };
@@ -39,6 +50,10 @@ pub fn addCommand(self: *CommandBuffer, command: Command) void {
 
 pub fn drawFilledRectangle(self: *CommandBuffer, rectangle: Command.FilledRectangle) void {
     self.addCommand(.{ .filled_rectangle = rectangle });
+}
+
+pub fn drawText(self: *CommandBuffer, text: Command.Text) void {
+    self.addCommand(.{ .text = text });
 }
 
 pub fn iterator(self: *CommandBuffer) Iterator {
