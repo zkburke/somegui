@@ -1,4 +1,5 @@
 const std = @import("std");
+const raylib_build = @import("example/raylib/raylib/src/build.zig");
 
 pub fn build(builder: *std.Build) void {
     const target = builder.standardTargetOptions(.{});
@@ -13,6 +14,11 @@ pub fn build(builder: *std.Build) void {
         });
 
         builder.installArtifact(exe);
+
+        const raylib = raylib_build.addRaylib(builder, target, optimize, .{});
+
+        exe.linkLibrary(raylib);
+        exe.addIncludePath("example/raylib/raylib/src/");
 
         const run_cmd = builder.addRunArtifact(exe);
 
