@@ -5,6 +5,7 @@ const CommandBuffer = @import("CommandBuffer.zig");
 const Input = @import("Input.zig");
 const Font = @import("Font.zig");
 const Color = @import("main.zig").Color;
+const Style = @import("Style.zig");
 
 allocator: std.mem.Allocator,
 command_buffer: ?*CommandBuffer = null,
@@ -16,7 +17,16 @@ layout: Layout = .{
     .item_offset = @Vector(2, u16){ 0, 0 },
     .item_size = @Vector(2, u16){ 0, 0 },
 },
-largest_button_size: @Vector(2, u16) = @Vector(2, u16){ 0, 0 },
+largest_element_size: @Vector(2, u16) = @Vector(2, u16){ 0, 0 },
+style: Style = .{
+    .primary_color = .{
+        .r = 50,
+        .g = 50,
+        .b = 50,
+        .a = 255,
+    },
+    .secondary_color = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+},
 
 pub const Layout = struct {
     bounds: @Vector(4, u16),
@@ -39,7 +49,7 @@ pub fn begin(self: *Context, command_buffer: ?*CommandBuffer) void {
     self.command_buffer = command_buffer;
 
     self.layout.item_offset = .{ 0, 0 };
-    self.largest_button_size = .{ 0, 0 };
+    self.largest_element_size = .{ 0, 0 };
 }
 
 pub fn end(self: *Context) void {
@@ -47,10 +57,10 @@ pub fn end(self: *Context) void {
 }
 
 ///Specifies a new line for layout elements
-pub fn beginRow(self: *Context) void {
+pub fn newRow(self: *Context) void {
     self.layout.item_offset[0] = 0;
-    self.layout.item_offset[1] += self.largest_button_size[1] + self.layout.item_padding[1];
-    self.largest_button_size = .{ 0, 0 };
+    self.layout.item_offset[1] += self.largest_element_size[1] + self.layout.item_padding[1];
+    self.largest_element_size = .{ 0, 0 };
 }
 
 pub fn drawText(self: *Context, x: u16, y: u16, font_size: u16, string: []const u8, color: Color, font: *const Font) void {
@@ -74,7 +84,7 @@ pub fn text(self: *Context, string: []const u8) void {
     const position = self.layout.item_offset;
     const text_size = font.measureText(string, font_size);
 
-    self.largest_button_size = @max(self.largest_button_size, text_size);
+    self.largest_element_size = @max(self.largest_element_size, text_size);
     self.layout.item_offset[0] += position[0] + text_size[0] + self.layout.item_padding[0];
 
     if (!self.isRegionVisible(position, text_size)) {
@@ -114,6 +124,74 @@ pub fn textFormat(self: *Context, comptime format: []const u8, args: anytype) vo
     }
 }
 
+pub const ButtonState = enum {
+    idle,
+    hovered,
+    pressed,
+    down,
+};
+
+///Specifies a button with a unicode encoded name, and returns true if the button is pressed, otherwise false.
+pub fn button(self: *Context, name: []const u8, size: @Vector(2, u16)) ButtonState {
+    const idle_color = self.style.primary_color;
+    const hovered_color = Color{ .r = 130, .g = 130, .b = 130, .a = 255 };
+    const down_color = Color{ .r = 80, .g = 80, .b = 80, .a = 255 };
+    const font_size = 10;
+
+    //TODO raylib dependency
+    const text_size = self.font.measureText(name, font_size);
+
+    const position = self.layout.item_offset;
+    const real_size = @max(text_size * @splat(2, @as(u16, 2)), size);
+
+    if (!self.isRegionVisible(position, real_size)) {
+        return .idle;
+    }
+
+    const text_position = position + text_size / @splat(2, @as(u16, 2));
+
+    self.largest_element_size = @max(self.largest_element_size, real_size);
+    self.layout.item_offset[0] += position[0] + real_size[0] + self.layout.item_padding[0];
+
+    const is_hovered = self.isRegionHovered(position, real_size);
+    const is_pressed = is_hovered and self.input.getMouseButton(.left) == .pressed;
+    const is_down = is_hovered and self.input.getMouseButton(.left) == .down;
+
+    var state: ButtonState = .idle;
+
+    if (is_hovered) {
+        state = .hovered;
+    }
+
+    if (is_pressed) {
+        state = .pressed;
+    }
+
+    if (is_down) {
+        state = .down;
+    }
+
+    const color = if (is_down) down_color else if (is_hovered) hovered_color else idle_color;
+
+    self.command_buffer.?.drawFilledRectangle(.{
+        .x = position[0],
+        .y = position[1],
+        .width = real_size[0],
+        .height = real_size[1],
+        .color = color,
+    });
+
+    if (!self.isRegionVisible(text_position, text_size)) {
+        return state;
+    }
+
+    const font = self.font;
+
+    self.drawText(text_position[0], text_position[1], font_size, name, Color.white, font);
+
+    return state;
+}
+
 fn aabbPointIntersect(position: @Vector(2, u16), size: @Vector(2, u16), point: @Vector(2, u16)) bool {
     return @reduce(.And, point > position) and @reduce(.And, point < position + size);
 }
@@ -128,7 +206,7 @@ fn aabbAabbIntersect(a_position: @Vector(2, u16), a_size: @Vector(2, u16), b_pos
 }
 
 fn isRegionHovered(self: *Context, position: @Vector(2, u16), size: @Vector(2, u16)) bool {
-    return aabbPointIntersect(position, size, self.mouse_position);
+    return aabbPointIntersect(position, size, self.input.mouse_position);
 }
 
 fn isRegionVisible(self: *Context, position: @Vector(2, u16), size: @Vector(2, u16)) bool {

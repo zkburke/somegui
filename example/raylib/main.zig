@@ -16,8 +16,8 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    var gui_context = somegui.Context.init(allocator);
-    defer gui_context.deinit();
+    var gui = somegui.Context.init(allocator);
+    defer gui.deinit();
 
     var gui_commands = somegui.CommandBuffer.init(allocator);
     defer gui_commands.deinit();
@@ -34,22 +34,45 @@ pub fn main() !void {
         c.ClearBackground(c.RAYWHITE);
 
         {
-            gui_context.begin(&gui_commands);
-            defer gui_context.end();
+            gui.input.mouse_position = .{ @as(u16, @intFromFloat(std.math.fabs(c.GetMousePosition().x))), @as(u16, @intFromFloat(std.math.fabs(c.GetMousePosition().y))) };
 
-            gui_context.font = &font;
-            gui_context.layout.bounds = .{ 0, 0, @as(u16, @intCast(c.GetScreenWidth())), @as(u16, @intCast(c.GetScreenHeight())) };
+            gui.input.mouse_buttons[@intFromEnum(somegui.Input.MouseButton.left)] =
+                if (c.IsMouseButtonPressed(c.MOUSE_BUTTON_LEFT))
+                somegui.Input.MouseButtonState.pressed
+            else if (c.IsMouseButtonReleased(c.MOUSE_BUTTON_LEFT))
+                somegui.Input.MouseButtonState.released
+            else if (c.IsMouseButtonUp(c.MOUSE_BUTTON_LEFT))
+                somegui.Input.MouseButtonState.up
+            else if (c.IsMouseButtonDown(c.MOUSE_BUTTON_LEFT))
+                somegui.Input.MouseButtonState.down
+            else
+                unreachable;
 
-            gui_context.beginRow();
+            gui.begin(&gui_commands);
+            defer gui.end();
+
+            gui.font = &font;
+            gui.layout.bounds = .{ 0, 0, @as(u16, @intCast(c.GetScreenWidth())), @as(u16, @intCast(c.GetScreenHeight())) };
+
+            gui.newRow();
 
             // gui_context.textFormat("hello, {s}", .{"world"});
-            gui_context.text("hello, world");
-            gui_context.text("what a lovely world");
+            gui.text("hello, world");
+            gui.text("what a lovely world");
 
-            gui_context.beginRow();
+            gui.newRow();
 
-            gui_context.text("what a lovely world");
-            gui_context.text("what a lovely world");
+            gui.text("what a lovely world");
+            gui.text("what a lovely world");
+
+            gui.newRow();
+
+            switch (gui.button("BUTTON", .{ 100, 40 })) {
+                .pressed => {
+                    std.log.info("PRESSED BUTTON", .{});
+                },
+                else => {},
+            }
         }
 
         var command_iterator = gui_commands.iterator();
