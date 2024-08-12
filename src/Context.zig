@@ -56,6 +56,20 @@ pub fn end(self: *Context) void {
     self.command_buffer = null;
 }
 
+pub fn windowBegin(
+    self: *Context,
+    comptime src: std.builtin.SourceLocation,
+    title: []const u8,
+) void {
+    _ = title; // autofix
+    _ = src; // autofix
+    _ = self; // autofix
+}
+
+pub fn windowEnd(self: *Context) void {
+    _ = self; // autofix
+}
+
 ///Specifies a new line for layout elements
 pub fn newRow(self: *Context) void {
     self.layout.item_offset[0] = 0;
@@ -98,6 +112,7 @@ pub fn text(self: *Context, string: []const u8) void {
         .height = text_size[1],
         .color = Color.red,
     });
+
     self.drawText(position[0], position[1], font_size, string, Color.black, font);
 }
 
@@ -132,23 +147,26 @@ pub const ButtonState = enum {
 };
 
 ///Specifies a button with a unicode encoded name, and returns true if the button is pressed, otherwise false.
-pub fn button(self: *Context, name: []const u8, size: @Vector(2, u16)) ButtonState {
+pub fn button(
+    self: *Context,
+    name: []const u8,
+    size: @Vector(2, u16),
+) ButtonState {
     const idle_color = self.style.primary_color;
     const hovered_color = Color{ .r = 130, .g = 130, .b = 130, .a = 255 };
     const down_color = Color{ .r = 80, .g = 80, .b = 80, .a = 255 };
     const font_size = 10;
 
-    //TODO raylib dependency
     const text_size = self.font.measureText(name, font_size);
 
     const position = self.layout.item_offset;
-    const real_size = @max(text_size * @splat(2, @as(u16, 2)), size);
+    const real_size = @max(text_size * @as(@Vector(2, u16), @splat(2)), size);
 
     if (!self.isRegionVisible(position, real_size)) {
         return .idle;
     }
 
-    const text_position = position + text_size / @splat(2, @as(u16, 2));
+    const text_position = position + text_size / @as(@Vector(2, u16), @splat(2));
 
     self.largest_element_size = @max(self.largest_element_size, real_size);
     self.layout.item_offset[0] += position[0] + real_size[0] + self.layout.item_padding[0];

@@ -1,25 +1,27 @@
 const std = @import("std");
 const raylib_build = @import("example/raylib/raylib/src/build.zig");
 
-pub fn build(builder: *std.Build) void {
+pub fn build(builder: *std.Build) !void {
     const target = builder.standardTargetOptions(.{});
     const optimize = builder.standardOptimizeOption(.{});
 
     {
         const exe = builder.addExecutable(.{
             .name = "example_raylib",
-            .root_source_file = std.build.FileSource.relative("example/raylib/main.zig"),
+            .root_source_file = std.Build.LazyPath.relative("example/raylib/main.zig"),
             .target = target,
             .optimize = optimize,
         });
 
         builder.installArtifact(exe);
 
-        const raylib = raylib_build.addRaylib(builder, target, optimize, .{});
+        const raylib = try raylib_build.addRaylib(builder, target, optimize, .{});
 
         exe.linkLibrary(raylib);
-        exe.addIncludePath("example/raylib/raylib/src/");
-        exe.addAnonymousModule("somegui", .{ .source_file = std.build.FileSource.relative("src/main.zig") });
+        exe.addIncludePath(.{ .path = "example/raylib/raylib/src/" });
+        exe.root_module.addAnonymousImport("somegui", .{
+            .root_source_file = std.Build.LazyPath.relative("src/main.zig"),
+        });
 
         const run_cmd = builder.addRunArtifact(exe);
 

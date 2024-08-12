@@ -22,7 +22,12 @@ pub fn main() !void {
     var gui_commands = somegui.CommandBuffer.init(allocator);
     defer gui_commands.deinit();
 
-    var raylib_font = c.GetFontDefault();
+    try gui_commands.text_buffer.ensureTotalCapacity(allocator, 1024);
+
+    const use_default_font = true;
+
+    var raylib_font = if (!use_default_font) c.LoadFont("example/raylib/CONSOLA.TTF") else c.GetFontDefault();
+    defer if (!use_default_font) c.UnloadFont(raylib_font);
 
     var font = try raylibFontToGuiFont(allocator, &raylib_font);
     defer raylibFontToGuiFontFree(allocator, font);
@@ -34,7 +39,7 @@ pub fn main() !void {
         c.ClearBackground(c.RAYWHITE);
 
         {
-            gui.input.mouse_position = .{ @as(u16, @intFromFloat(std.math.fabs(c.GetMousePosition().x))), @as(u16, @intFromFloat(std.math.fabs(c.GetMousePosition().y))) };
+            gui.input.mouse_position = .{ @as(u16, @intFromFloat(@abs(c.GetMousePosition().x))), @as(u16, @intFromFloat(@abs(c.GetMousePosition().y))) };
 
             gui.input.mouse_buttons[@intFromEnum(somegui.Input.MouseButton.left)] =
                 if (c.IsMouseButtonPressed(c.MOUSE_BUTTON_LEFT))
@@ -56,22 +61,29 @@ pub fn main() !void {
 
             gui.newRow();
 
-            // gui_context.textFormat("hello, {s}", .{"world"});
+            gui.textFormat("hello, {s}", .{"sus"});
             gui.text("hello, world");
             gui.text("what a lovely world");
 
             gui.newRow();
 
+            gui.textFormat("fps {s}", .{""});
+
             gui.text("what a lovely world");
             gui.text("what a lovely world");
 
             gui.newRow();
 
-            switch (gui.button("BUTTON", .{ 100, 40 })) {
+            switch (gui.button("BUTTON", .{ 0, 40 })) {
                 .pressed => {
                     std.log.info("PRESSED BUTTON", .{});
                 },
                 else => {},
+            }
+
+            {
+                gui.windowBegin(@src(), "Test Win");
+                defer gui.windowEnd();
             }
         }
 
@@ -128,8 +140,9 @@ pub fn raylibFontToGuiFont(allocator: std.mem.Allocator, font: *c.Font) !somegui
 
         glyph.size_x = @as(u16, @intCast(raylib_glyph.advanceX));
         glyph.size_y = @as(u16, @intCast(font.baseSize));
+
         glyph.offset_x = @as(u16, @intCast(raylib_glyph.offsetX));
-        glyph.offset_y = @as(u16, @intCast(raylib_glyph.offsetY));
+        glyph.offset_y = if (raylib_glyph.offsetY > -1) @as(u16, @intCast(raylib_glyph.offsetY)) else 0;
 
         glyph_rectangles[i] = .{
             @as(u16, @intFromFloat(raylib_rectangle.x)),
@@ -199,7 +212,7 @@ pub fn measureTextExLen(font: c.Font, text: []const u8, font_size: f32, spacing:
 pub fn measureTextLen(font: c.Font, text: []const u8, font_size: f32) c.Vector2 {
     const default_font_size: c_int = 10; // Default Font chars height in pixel
 
-    var _font_size = if (@as(c_int, @intFromFloat(font_size)) < default_font_size) default_font_size else @as(c_int, @intFromFloat(font_size));
+    const _font_size = if (@as(c_int, @intFromFloat(font_size)) < default_font_size) default_font_size else @as(c_int, @intFromFloat(font_size));
 
     const spacing = @divFloor(_font_size, default_font_size);
 
@@ -210,7 +223,9 @@ pub fn drawTextExLen(font: c.Font, text: []const u8, position: c.Vector2, font_s
     var text_offset_y: c_int = 0;
     var text_offset_x: f32 = 0;
 
-    var scale_factor: f32 = font_size / @as(f32, @floatFromInt(font.baseSize)); // Character quad scaling factor
+    const scale_factor: f32 = font_size / @as(f32, @floatFromInt(font.baseSize)); // Character quad scaling factor
+
+    // std.log.info("{s}", .{text[0..text.len]});
 
     var interator = std.unicode.Utf8Iterator{ .bytes = text, .i = 0 };
 
@@ -240,11 +255,11 @@ pub fn drawTextLen(text: []const u8, posX: c_int, posY: c_int, font_size: c_int,
     // Check if default font has been loaded
     if (font.texture.id == 0) return;
 
-    var position = c.Vector2{ .x = @as(f32, @floatFromInt(posX)), .y = @as(f32, @floatFromInt(posY)) };
+    const position = c.Vector2{ .x = @as(f32, @floatFromInt(posX)), .y = @as(f32, @floatFromInt(posY)) };
 
     const default_font_size: c_int = 10; // Default Font chars height in pixel
 
-    var _font_size = if (font_size < default_font_size) default_font_size else font_size;
+    const _font_size = if (font_size < default_font_size) default_font_size else font_size;
 
     const spacing = @divFloor(_font_size, default_font_size);
 
@@ -252,11 +267,11 @@ pub fn drawTextLen(text: []const u8, posX: c_int, posY: c_int, font_size: c_int,
 }
 
 pub fn drawTextLenFont(font: c.Font, text: []const u8, posX: c_int, posY: c_int, font_size: c_int, color: c.Color) void {
-    var position = c.Vector2{ .x = @as(f32, @floatFromInt(posX)), .y = @as(f32, @floatFromInt(posY)) };
+    const position = c.Vector2{ .x = @as(f32, @floatFromInt(posX)), .y = @as(f32, @floatFromInt(posY)) };
 
     const default_font_size: c_int = 10; // Default Font chars height in pixel
 
-    var _font_size = if (font_size < default_font_size) default_font_size else font_size;
+    const _font_size = if (font_size < default_font_size) default_font_size else font_size;
 
     const spacing = @divFloor(_font_size, default_font_size);
 

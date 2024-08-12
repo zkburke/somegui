@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const CommandBuffer = @This();
-
 const Color = @import("main.zig").Color;
 const Font = @import("main.zig").Font;
 
@@ -27,25 +26,31 @@ pub const Command = union(enum) {
     };
 };
 
-commands: std.ArrayList(Command),
+allocator: std.mem.Allocator,
+commands: std.ArrayListUnmanaged(Command),
+text_buffer: std.ArrayListUnmanaged(u8),
 
 pub fn init(allocator: std.mem.Allocator) CommandBuffer {
     return .{
-        .commands = std.ArrayList(Command).init(allocator),
+        .allocator = allocator,
+        .commands = .{},
+        .text_buffer = .{},
     };
 }
 
 pub fn deinit(self: *CommandBuffer) void {
-    self.commands.deinit();
+    self.commands.deinit(self.allocator);
+    self.text_buffer.deinit(self.allocator);
     self.* = undefined;
 }
 
 pub fn clear(self: *CommandBuffer) void {
     self.commands.clearRetainingCapacity();
+    self.text_buffer.clearRetainingCapacity();
 }
 
 pub fn addCommand(self: *CommandBuffer, command: Command) void {
-    self.commands.append(command) catch unreachable;
+    self.commands.append(self.allocator, command) catch unreachable;
 }
 
 pub fn drawFilledRectangle(self: *CommandBuffer, rectangle: Command.FilledRectangle) void {
@@ -53,7 +58,14 @@ pub fn drawFilledRectangle(self: *CommandBuffer, rectangle: Command.FilledRectan
 }
 
 pub fn drawText(self: *CommandBuffer, text: Command.Text) void {
-    self.addCommand(.{ .text = text });
+    self.addCommand(.{ .text = .{
+        .x = text.x,
+        .y = text.y,
+        .string = self.textBuffer(text.string),
+        .font_size = text.font_size,
+        .font = text.font,
+        .color = text.color,
+    } });
 }
 
 pub fn iterator(self: *CommandBuffer) Iterator {
@@ -74,3 +86,11 @@ pub const Iterator = struct {
         return self.command_buffer.commands.items[self.index];
     }
 };
+
+fn textBuffer(self: *CommandBuffer, string: []const u8) []const u8 {
+    const start = self.text_buffer.items.len;
+
+    self.text_buffer.appendSlice(self.allocator, string) catch unreachable;
+
+    return self.text_buffer.items[start .. start + string.len];
+}
